@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "814412447092",
+    "project_id": "fleets-x9tytb",
+    "storage_bucket": "fleets-x9tytb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814412447092:android:a0027c6a15afd7140f0021",
+        "android_client_info": {
+          "package_name": "com.oilmanager.manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "814412447092-a2qrdal890hd65quugvgl2sj9mied920.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCiXwJyoNKejtV6czjI650c_0PMXFmypE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "814412447092-a2qrdal890hd65quugvgl2sj9mied920.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "814412447092-q280le346tgb6d53ime9rug1mib278v7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.recruitmenttracker"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
