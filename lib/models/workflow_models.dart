@@ -1,405 +1,444 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Workflow instance status
-enum WorkflowStatus {
-  pending,
-  inProgress,
-  completed,
-  cancelled,
-  failed,
-}
-
-/// Workflow instance - tracks workflow execution for orders
+/// Workflow Instance - Tracks the lifecycle of a workflow execution
 class WorkflowInstance {
   final String id;
-  final String domain;  // sales | uco | return | refund
-  final String orderType;
-  final String orderId;
-  final String templateId;
-  final WorkflowStatus status;
-  final int currentStep;
-  final DateTime? slaDueAt;
-  final String startedByUserId;
-  final DateTime createdAt;
+  final String workflowType; // 'sales_order', 'uco_pickup', 'return_request'
+  final String entityId; // ID of the related entity (order ID, pickup ID, etc.)
+  final String entityType; // 'sales_order', 'uco_pickup', 'return_request'
+  final String currentStatus;
+  final String currentStepId;
+  final String initiatedBy; // User ID who started the workflow
+  final DateTime initiatedAt;
   final DateTime? completedAt;
-  final Map<String, dynamic>? metadata;
-
+  final bool isCompleted;
+  final bool hasException;
+  final String? exceptionReason;
+  final Map<String, dynamic> metadata; // Additional context data
+  final DateTime? slaDeadline;
+  final bool isOverdue;
+  
   WorkflowInstance({
     required this.id,
-    required this.domain,
-    required this.orderType,
-    required this.orderId,
-    required this.templateId,
-    required this.status,
-    required this.currentStep,
-    this.slaDueAt,
-    required this.startedByUserId,
-    required this.createdAt,
+    required this.workflowType,
+    required this.entityId,
+    required this.entityType,
+    required this.currentStatus,
+    required this.currentStepId,
+    required this.initiatedBy,
+    required this.initiatedAt,
     this.completedAt,
-    this.metadata,
+    this.isCompleted = false,
+    this.hasException = false,
+    this.exceptionReason,
+    this.metadata = const {},
+    this.slaDeadline,
+    this.isOverdue = false,
   });
 
   factory WorkflowInstance.fromFirestore(Map<String, dynamic> data, String docId) {
     return WorkflowInstance(
       id: docId,
-      domain: data['domain'] as String? ?? '',
-      orderType: data['orderType'] as String? ?? '',
-      orderId: data['orderId'] as String? ?? '',
-      templateId: data['templateId'] as String? ?? '',
-      status: _parseStatus(data['status'] as String?),
-      currentStep: data['currentStep'] as int? ?? 1,
-      slaDueAt: (data['slaDueAt'] as Timestamp?)?.toDate(),
-      startedByUserId: data['startedByUserId'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
-      metadata: data['metadata'] as Map<String, dynamic>?,
+      workflowType: data['workflowType'] ?? '',
+      entityId: data['entityId'] ?? '',
+      entityType: data['entityType'] ?? '',
+      currentStatus: data['currentStatus'] ?? '',
+      currentStepId: data['currentStepId'] ?? '',
+      initiatedBy: data['initiatedBy'] ?? '',
+      initiatedAt: (data['initiatedAt'] as Timestamp).toDate(),
+      completedAt: data['completedAt'] != null 
+          ? (data['completedAt'] as Timestamp).toDate() 
+          : null,
+      isCompleted: data['isCompleted'] ?? false,
+      hasException: data['hasException'] ?? false,
+      exceptionReason: data['exceptionReason'],
+      metadata: data['metadata'] ?? {},
+      slaDeadline: data['slaDeadline'] != null
+          ? (data['slaDeadline'] as Timestamp).toDate()
+          : null,
+      isOverdue: data['isOverdue'] ?? false,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'domain': domain,
-      'orderType': orderType,
-      'orderId': orderId,
-      'templateId': templateId,
-      'status': _statusToString(status),
-      'currentStep': currentStep,
-      'slaDueAt': slaDueAt != null ? Timestamp.fromDate(slaDueAt!) : null,
-      'startedByUserId': startedByUserId,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'workflowType': workflowType,
+      'entityId': entityId,
+      'entityType': entityType,
+      'currentStatus': currentStatus,
+      'currentStepId': currentStepId,
+      'initiatedBy': initiatedBy,
+      'initiatedAt': Timestamp.fromDate(initiatedAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'isCompleted': isCompleted,
+      'hasException': hasException,
+      'exceptionReason': exceptionReason,
       'metadata': metadata,
+      'slaDeadline': slaDeadline != null ? Timestamp.fromDate(slaDeadline!) : null,
+      'isOverdue': isOverdue,
     };
   }
 
-  static WorkflowStatus _parseStatus(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'pending':
-        return WorkflowStatus.pending;
-      case 'in_progress':
-      case 'inprogress':
-        return WorkflowStatus.inProgress;
-      case 'completed':
-        return WorkflowStatus.completed;
-      case 'cancelled':
-        return WorkflowStatus.cancelled;
-      case 'failed':
-        return WorkflowStatus.failed;
+  String get displayName {
+    switch (workflowType) {
+      case 'sales_order':
+        return 'Sales Order #${entityId.substring(0, 8)}';
+      case 'uco_pickup':
+        return 'UCO Pickup #${entityId.substring(0, 8)}';
+      case 'return_request':
+        return 'Return Request #${entityId.substring(0, 8)}';
       default:
-        return WorkflowStatus.pending;
+        return 'Workflow #${entityId.substring(0, 8)}';
     }
-  }
-
-  static String _statusToString(WorkflowStatus status) {
-    switch (status) {
-      case WorkflowStatus.pending:
-        return 'pending';
-      case WorkflowStatus.inProgress:
-        return 'in_progress';
-      case WorkflowStatus.completed:
-        return 'completed';
-      case WorkflowStatus.cancelled:
-        return 'cancelled';
-      case WorkflowStatus.failed:
-        return 'failed';
-    }
-  }
-
-  bool get isActive => status == WorkflowStatus.pending || status == WorkflowStatus.inProgress;
-  bool get isTerminal => status == WorkflowStatus.completed || 
-                         status == WorkflowStatus.cancelled || 
-                         status == WorkflowStatus.failed;
-  bool get isOverdue => slaDueAt != null && DateTime.now().isAfter(slaDueAt!);
-
-  WorkflowInstance copyWith({
-    WorkflowStatus? status,
-    int? currentStep,
-    DateTime? slaDueAt,
-    DateTime? completedAt,
-    Map<String, dynamic>? metadata,
-  }) {
-    return WorkflowInstance(
-      id: id,
-      domain: domain,
-      orderType: orderType,
-      orderId: orderId,
-      templateId: templateId,
-      status: status ?? this.status,
-      currentStep: currentStep ?? this.currentStep,
-      slaDueAt: slaDueAt ?? this.slaDueAt,
-      startedByUserId: startedByUserId,
-      createdAt: createdAt,
-      completedAt: completedAt ?? this.completedAt,
-      metadata: metadata ?? this.metadata,
-    );
   }
 }
 
-/// Workflow step decision
-enum StepDecision {
-  pending,
-  approved,
-  rejected,
-  skipped,
-  failed,
-}
-
-/// Workflow step - individual step in workflow execution
+/// Workflow Step - Individual step in a workflow execution
 class WorkflowStep {
   final String id;
   final String workflowInstanceId;
-  final int stepNumber;
   final String stepName;
-  final String stepType;  // Approval | Task | SystemCheck
-  final String? assignedRole;
-  final String? assignedUserId;
-  final StepDecision decision;
-  final String? decisionByUserId;
-  final DateTime? decisionAt;
-  final String? comments;
-  final List<String> attachments;
-  final DateTime? slaDueAt;
-  final DateTime createdAt;
+  final String status; // 'pending', 'in_progress', 'completed', 'rejected', 'skipped'
+  final String? assignedTo; // User ID
+  final DateTime? startedAt;
   final DateTime? completedAt;
-  final Map<String, dynamic>? metadata;
-
+  final String? completedBy; // User ID
+  final String? notes;
+  final Map<String, dynamic> data; // Step-specific data
+  final DateTime? slaDeadline;
+  final bool requiresApproval;
+  
   WorkflowStep({
     required this.id,
     required this.workflowInstanceId,
-    required this.stepNumber,
     required this.stepName,
-    required this.stepType,
-    this.assignedRole,
-    this.assignedUserId,
-    required this.decision,
-    this.decisionByUserId,
-    this.decisionAt,
-    this.comments,
-    List<String>? attachments,
-    this.slaDueAt,
-    required this.createdAt,
+    required this.status,
+    this.assignedTo,
+    this.startedAt,
     this.completedAt,
-    this.metadata,
-  }) : attachments = attachments ?? [];
+    this.completedBy,
+    this.notes,
+    this.data = const {},
+    this.slaDeadline,
+    this.requiresApproval = false,
+  });
 
   factory WorkflowStep.fromFirestore(Map<String, dynamic> data, String docId) {
     return WorkflowStep(
       id: docId,
-      workflowInstanceId: data['workflowInstanceId'] as String? ?? '',
-      stepNumber: data['stepNumber'] as int? ?? 1,
-      stepName: data['stepName'] as String? ?? '',
-      stepType: data['stepType'] as String? ?? 'Task',
-      assignedRole: data['assignedRole'] as String?,
-      assignedUserId: data['assignedUserId'] as String?,
-      decision: _parseDecision(data['decision'] as String?),
-      decisionByUserId: data['decisionByUserId'] as String?,
-      decisionAt: (data['decisionAt'] as Timestamp?)?.toDate(),
-      comments: data['comments'] as String?,
-      attachments: List<String>.from(data['attachments'] as List? ?? []),
-      slaDueAt: (data['slaDueAt'] as Timestamp?)?.toDate(),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
-      metadata: data['metadata'] as Map<String, dynamic>?,
+      workflowInstanceId: data['workflowInstanceId'] ?? '',
+      stepName: data['stepName'] ?? '',
+      status: data['status'] ?? 'pending',
+      assignedTo: data['assignedTo'],
+      startedAt: data['startedAt'] != null
+          ? (data['startedAt'] as Timestamp).toDate()
+          : null,
+      completedAt: data['completedAt'] != null
+          ? (data['completedAt'] as Timestamp).toDate()
+          : null,
+      completedBy: data['completedBy'],
+      notes: data['notes'],
+      data: data['data'] ?? {},
+      slaDeadline: data['slaDeadline'] != null
+          ? (data['slaDeadline'] as Timestamp).toDate()
+          : null,
+      requiresApproval: data['requiresApproval'] ?? false,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
       'workflowInstanceId': workflowInstanceId,
-      'stepNumber': stepNumber,
       'stepName': stepName,
-      'stepType': stepType,
-      'assignedRole': assignedRole,
-      'assignedUserId': assignedUserId,
-      'decision': _decisionToString(decision),
-      'decisionByUserId': decisionByUserId,
-      'decisionAt': decisionAt != null ? Timestamp.fromDate(decisionAt!) : null,
-      'comments': comments,
-      'attachments': attachments,
-      'slaDueAt': slaDueAt != null ? Timestamp.fromDate(slaDueAt!) : null,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'status': status,
+      'assignedTo': assignedTo,
+      'startedAt': startedAt != null ? Timestamp.fromDate(startedAt!) : null,
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'completedBy': completedBy,
+      'notes': notes,
+      'data': data,
+      'slaDeadline': slaDeadline != null ? Timestamp.fromDate(slaDeadline!) : null,
+      'requiresApproval': requiresApproval,
+    };
+  }
+}
+
+/// Approval Request - Pending approval for a workflow step
+class ApprovalRequest {
+  final String id;
+  final String workflowInstanceId;
+  final String workflowStepId;
+  final String workflowType;
+  final String entityId;
+  final String requestType; // 'order_approval', 'uco_approval', 'return_approval', 'price_override', 'credit_limit'
+  final String requestedBy;
+  final DateTime requestedAt;
+  final String? assignedTo; // Specific approver, null for role-based
+  final String? assignedToRole; // Role that can approve (e.g., 'operations_manager', 'finance_manager')
+  final String status; // 'pending', 'approved', 'rejected'
+  final String? approvedBy;
+  final DateTime? approvedAt;
+  final String? rejectionReason;
+  final Map<String, dynamic> requestData; // Context data for approval decision
+  final String priority; // 'low', 'medium', 'high', 'urgent'
+  final DateTime? slaDeadline;
+  
+  ApprovalRequest({
+    required this.id,
+    required this.workflowInstanceId,
+    required this.workflowStepId,
+    required this.workflowType,
+    required this.entityId,
+    required this.requestType,
+    required this.requestedBy,
+    required this.requestedAt,
+    this.assignedTo,
+    this.assignedToRole,
+    this.status = 'pending',
+    this.approvedBy,
+    this.approvedAt,
+    this.rejectionReason,
+    this.requestData = const {},
+    this.priority = 'medium',
+    this.slaDeadline,
+  });
+
+  factory ApprovalRequest.fromFirestore(Map<String, dynamic> data, String docId) {
+    return ApprovalRequest(
+      id: docId,
+      workflowInstanceId: data['workflowInstanceId'] ?? '',
+      workflowStepId: data['workflowStepId'] ?? '',
+      workflowType: data['workflowType'] ?? '',
+      entityId: data['entityId'] ?? '',
+      requestType: data['requestType'] ?? '',
+      requestedBy: data['requestedBy'] ?? '',
+      requestedAt: (data['requestedAt'] as Timestamp).toDate(),
+      assignedTo: data['assignedTo'],
+      assignedToRole: data['assignedToRole'],
+      status: data['status'] ?? 'pending',
+      approvedBy: data['approvedBy'],
+      approvedAt: data['approvedAt'] != null
+          ? (data['approvedAt'] as Timestamp).toDate()
+          : null,
+      rejectionReason: data['rejectionReason'],
+      requestData: data['requestData'] ?? {},
+      priority: data['priority'] ?? 'medium',
+      slaDeadline: data['slaDeadline'] != null
+          ? (data['slaDeadline'] as Timestamp).toDate()
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'workflowInstanceId': workflowInstanceId,
+      'workflowStepId': workflowStepId,
+      'workflowType': workflowType,
+      'entityId': entityId,
+      'requestType': requestType,
+      'requestedBy': requestedBy,
+      'requestedAt': Timestamp.fromDate(requestedAt),
+      'assignedTo': assignedTo,
+      'assignedToRole': assignedToRole,
+      'status': status,
+      'approvedBy': approvedBy,
+      'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
+      'rejectionReason': rejectionReason,
+      'requestData': requestData,
+      'priority': priority,
+      'slaDeadline': slaDeadline != null ? Timestamp.fromDate(slaDeadline!) : null,
+    };
+  }
+
+  String get displayTitle {
+    switch (requestType) {
+      case 'order_approval':
+        return 'Order Approval Required';
+      case 'uco_approval':
+        return 'UCO Pickup Approval';
+      case 'return_approval':
+        return 'Return Request Approval';
+      case 'price_override':
+        return 'Price Override Approval';
+      case 'credit_limit':
+        return 'Credit Limit Approval';
+      default:
+        return 'Approval Required';
+    }
+  }
+
+  bool get isOverdue {
+    if (slaDeadline == null || status != 'pending') return false;
+    return DateTime.now().isAfter(slaDeadline!);
+  }
+}
+
+/// Exception Record - Tracks workflow exceptions and issues
+class ExceptionRecord {
+  final String id;
+  final String workflowInstanceId;
+  final String entityType;
+  final String entityId;
+  final String exceptionType; // 'payment_failed', 'stock_unavailable', 'address_invalid', 'quality_issue', 'other'
+  final String severity; // 'low', 'medium', 'high', 'critical'
+  final String description;
+  final DateTime occurredAt;
+  final String? assignedTo; // User ID responsible for resolution
+  final String status; // 'open', 'in_progress', 'resolved', 'escalated'
+  final String? resolution;
+  final DateTime? resolvedAt;
+  final String? resolvedBy;
+  final Map<String, dynamic> metadata;
+  
+  ExceptionRecord({
+    required this.id,
+    required this.workflowInstanceId,
+    required this.entityType,
+    required this.entityId,
+    required this.exceptionType,
+    required this.severity,
+    required this.description,
+    required this.occurredAt,
+    this.assignedTo,
+    this.status = 'open',
+    this.resolution,
+    this.resolvedAt,
+    this.resolvedBy,
+    this.metadata = const {},
+  });
+
+  factory ExceptionRecord.fromFirestore(Map<String, dynamic> data, String docId) {
+    return ExceptionRecord(
+      id: docId,
+      workflowInstanceId: data['workflowInstanceId'] ?? '',
+      entityType: data['entityType'] ?? '',
+      entityId: data['entityId'] ?? '',
+      exceptionType: data['exceptionType'] ?? '',
+      severity: data['severity'] ?? 'medium',
+      description: data['description'] ?? '',
+      occurredAt: (data['occurredAt'] as Timestamp).toDate(),
+      assignedTo: data['assignedTo'],
+      status: data['status'] ?? 'open',
+      resolution: data['resolution'],
+      resolvedAt: data['resolvedAt'] != null
+          ? (data['resolvedAt'] as Timestamp).toDate()
+          : null,
+      resolvedBy: data['resolvedBy'],
+      metadata: data['metadata'] ?? {},
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'workflowInstanceId': workflowInstanceId,
+      'entityType': entityType,
+      'entityId': entityId,
+      'exceptionType': exceptionType,
+      'severity': severity,
+      'description': description,
+      'occurredAt': Timestamp.fromDate(occurredAt),
+      'assignedTo': assignedTo,
+      'status': status,
+      'resolution': resolution,
+      'resolvedAt': resolvedAt != null ? Timestamp.fromDate(resolvedAt!) : null,
+      'resolvedBy': resolvedBy,
       'metadata': metadata,
     };
   }
 
-  static StepDecision _parseDecision(String? decision) {
-    switch (decision?.toLowerCase()) {
-      case 'pending':
-        return StepDecision.pending;
-      case 'approved':
-        return StepDecision.approved;
-      case 'rejected':
-        return StepDecision.rejected;
-      case 'skipped':
-        return StepDecision.skipped;
-      case 'failed':
-        return StepDecision.failed;
+  String get displayTitle {
+    switch (exceptionType) {
+      case 'payment_failed':
+        return 'Payment Processing Failed';
+      case 'stock_unavailable':
+        return 'Product Out of Stock';
+      case 'address_invalid':
+        return 'Invalid Delivery Address';
+      case 'quality_issue':
+        return 'Quality Check Failed';
       default:
-        return StepDecision.pending;
+        return 'Exception Occurred';
     }
-  }
-
-  static String _decisionToString(StepDecision decision) {
-    switch (decision) {
-      case StepDecision.pending:
-        return 'pending';
-      case StepDecision.approved:
-        return 'approved';
-      case StepDecision.rejected:
-        return 'rejected';
-      case StepDecision.skipped:
-        return 'skipped';
-      case StepDecision.failed:
-        return 'failed';
-    }
-  }
-
-  bool get isPending => decision == StepDecision.pending;
-  bool get isCompleted => decision != StepDecision.pending;
-  bool get isApproved => decision == StepDecision.approved;
-  bool get isRejected => decision == StepDecision.rejected;
-  bool get isOverdue => slaDueAt != null && DateTime.now().isAfter(slaDueAt!);
-
-  /// Check if user can take action on this step
-  bool canUserTakeAction(String userId, String userRole) {
-    if (!isPending) return false;
-    
-    // Specific user assignment
-    if (assignedUserId != null) {
-      return assignedUserId == userId;
-    }
-    
-    // Role-based assignment
-    if (assignedRole != null) {
-      return assignedRole == userRole;
-    }
-    
-    return false;
-  }
-
-  WorkflowStep copyWith({
-    StepDecision? decision,
-    String? decisionByUserId,
-    DateTime? decisionAt,
-    String? comments,
-    List<String>? attachments,
-    DateTime? completedAt,
-    Map<String, dynamic>? metadata,
-  }) {
-    return WorkflowStep(
-      id: id,
-      workflowInstanceId: workflowInstanceId,
-      stepNumber: stepNumber,
-      stepName: stepName,
-      stepType: stepType,
-      assignedRole: assignedRole,
-      assignedUserId: assignedUserId,
-      decision: decision ?? this.decision,
-      decisionByUserId: decisionByUserId ?? this.decisionByUserId,
-      decisionAt: decisionAt ?? this.decisionAt,
-      comments: comments ?? this.comments,
-      attachments: attachments ?? this.attachments,
-      slaDueAt: slaDueAt,
-      createdAt: createdAt,
-      completedAt: completedAt ?? this.completedAt,
-      metadata: metadata ?? this.metadata,
-    );
   }
 }
 
-/// Return/Refund request model
-class ReturnRequest {
+/// Audit Log Entry - Tracks all workflow actions
+class AuditLogEntry {
   final String id;
-  final String salesOrderId;
-  final String customerId;
-  final String requestType;  // Return | Refund | Replace
-  final String reasonId;
-  final String description;
-  final String status;
-  final List<ReturnItem> items;
-  final String? workflowInstanceId;
-  final DateTime createdAt;
-  final DateTime? completedAt;
-
-  ReturnRequest({
+  final String workflowInstanceId;
+  final String entityType;
+  final String entityId;
+  final String action; // 'created', 'approved', 'rejected', 'status_changed', 'assigned', 'exception_raised', etc.
+  final String performedBy;
+  final DateTime performedAt;
+  final String? fromStatus;
+  final String? toStatus;
+  final String? notes;
+  final Map<String, dynamic> changes; // Before/after values
+  
+  AuditLogEntry({
     required this.id,
-    required this.salesOrderId,
-    required this.customerId,
-    required this.requestType,
-    required this.reasonId,
-    required this.description,
-    required this.status,
-    required this.items,
-    this.workflowInstanceId,
-    required this.createdAt,
-    this.completedAt,
+    required this.workflowInstanceId,
+    required this.entityType,
+    required this.entityId,
+    required this.action,
+    required this.performedBy,
+    required this.performedAt,
+    this.fromStatus,
+    this.toStatus,
+    this.notes,
+    this.changes = const {},
   });
 
-  factory ReturnRequest.fromFirestore(Map<String, dynamic> data, String docId) {
-    return ReturnRequest(
+  factory AuditLogEntry.fromFirestore(Map<String, dynamic> data, String docId) {
+    return AuditLogEntry(
       id: docId,
-      salesOrderId: data['salesOrderId'] as String? ?? '',
-      customerId: data['customerId'] as String? ?? '',
-      requestType: data['requestType'] as String? ?? 'Return',
-      reasonId: data['reasonId'] as String? ?? '',
-      description: data['description'] as String? ?? '',
-      status: data['status'] as String? ?? 'pending',
-      items: (data['items'] as List?)
-              ?.map((e) => ReturnItem.fromMap(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      workflowInstanceId: data['workflowInstanceId'] as String?,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      workflowInstanceId: data['workflowInstanceId'] ?? '',
+      entityType: data['entityType'] ?? '',
+      entityId: data['entityId'] ?? '',
+      action: data['action'] ?? '',
+      performedBy: data['performedBy'] ?? '',
+      performedAt: (data['performedAt'] as Timestamp).toDate(),
+      fromStatus: data['fromStatus'],
+      toStatus: data['toStatus'],
+      notes: data['notes'],
+      changes: data['changes'] ?? {},
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'salesOrderId': salesOrderId,
-      'customerId': customerId,
-      'requestType': requestType,
-      'reasonId': reasonId,
-      'description': description,
-      'status': status,
-      'items': items.map((i) => i.toMap()).toList(),
       'workflowInstanceId': workflowInstanceId,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'entityType': entityType,
+      'entityId': entityId,
+      'action': action,
+      'performedBy': performedBy,
+      'performedAt': Timestamp.fromDate(performedAt),
+      'fromStatus': fromStatus,
+      'toStatus': toStatus,
+      'notes': notes,
+      'changes': changes,
     };
   }
-}
 
-/// Return item
-class ReturnItem {
-  final String productId;
-  final int quantity;
-  final String condition;
-  final List<String> photos;
-
-  ReturnItem({
-    required this.productId,
-    required this.quantity,
-    required this.condition,
-    List<String>? photos,
-  }) : photos = photos ?? [];
-
-  factory ReturnItem.fromMap(Map<String, dynamic> data) {
-    return ReturnItem(
-      productId: data['productId'] as String? ?? '',
-      quantity: data['quantity'] as int? ?? 0,
-      condition: data['condition'] as String? ?? '',
-      photos: List<String>.from(data['photos'] as List? ?? []),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'productId': productId,
-      'quantity': quantity,
-      'condition': condition,
-      'photos': photos,
-    };
+  String get displayAction {
+    switch (action) {
+      case 'created':
+        return 'Created';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      case 'status_changed':
+        return 'Status Changed';
+      case 'assigned':
+        return 'Assigned';
+      case 'exception_raised':
+        return 'Exception Raised';
+      case 'exception_resolved':
+        return 'Exception Resolved';
+      default:
+        return action;
+    }
   }
 }

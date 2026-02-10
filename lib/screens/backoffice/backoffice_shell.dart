@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import 'approval_inbox_screen.dart';
+import 'exception_queue_screen.dart';
+import 'audit_log_screen.dart';
 
 /// Backoffice shell with drawer navigation for admin, ops, warehouse, fleet, finance
 class BackofficeShell extends StatefulWidget {
@@ -250,6 +253,16 @@ class _BackofficeShellState extends State<BackofficeShell> {
 
           const Divider(),
 
+          // Approval Inbox (Workflow Engine)
+          _buildDrawerItem(
+            context,
+            icon: Icons.approval_outlined,
+            selectedIcon: Icons.approval,
+            title: 'Approval Inbox',
+            index: 13,
+            badge: '5', // Dynamic count from workflow service
+          ),
+
           // Administration (admin only)
           if (canAccessAdministration)
             _buildDrawerItem(
@@ -327,28 +340,45 @@ class _BackofficeShellState extends State<BackofficeShell> {
   }
 
   Widget _buildBody() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.construction,
-            size: 64,
-            color: Colors.grey.shade400,
+    // Show appropriate screen based on selected index
+    switch (_selectedIndex) {
+      case 11: // Exception Queue
+        return const ExceptionQueueScreen();
+      case 12: // Audit Log
+        return const AuditLogScreen();
+      case 13: // Approval Inbox
+        return const ApprovalInboxScreen();
+      default:
+        // Default placeholder for other screens
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.construction_outlined,
+                size: 64,
+                color: Colors.grey[300],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _getPageTitle(),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Coming Soon',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            _getPageTitle(),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This page is under construction',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-        ],
-      ),
-    );
+        );
+    }
   }
 
   String _getPageTitle() {
@@ -379,6 +409,8 @@ class _BackofficeShellState extends State<BackofficeShell> {
         return 'Exception Queue';
       case 12:
         return 'Audit Log';
+      case 13:
+        return 'Approval Inbox';
       default:
         return 'Oil Manager';
     }
