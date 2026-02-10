@@ -40,27 +40,65 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
       child: MaterialApp(
-        title: 'Oil Manager',
+        title: 'Oil Manager - Enterprise Cooking Oil Management',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
+          // Professional cooking oil industry color scheme
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1976D2),
+            seedColor: const Color(0xFFF59E0B), // Amber/Golden - represents cooking oil
+            primary: const Color(0xFFF59E0B),    // Amber 500
+            secondary: const Color(0xFF059669),  // Emerald 600 - eco-friendly/UCO
+            tertiary: const Color(0xFF7C3AED),   // Violet 600 - premium
             brightness: Brightness.light,
           ),
           useMaterial3: true,
+          
+          // AppBar styling
           appBarTheme: const AppBarTheme(
             centerTitle: true,
             elevation: 0,
+            backgroundColor: Color(0xFFF59E0B), // Amber primary
+            foregroundColor: Colors.white,
           ),
-          cardTheme: const CardThemeData(
+          
+          // Card styling
+          cardTheme: CardThemeData(
             elevation: 2,
-            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
+          
+          // Input styling
           inputDecorationTheme: InputDecorationTheme(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFF59E0B), width: 2),
+            ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          
+          // Button styling
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+          
+          // FloatingActionButton styling
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Color(0xFFF59E0B),
+            foregroundColor: Colors.white,
           ),
         ),
         home: const SplashScreen(),

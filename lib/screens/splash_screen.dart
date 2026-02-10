@@ -46,35 +46,63 @@ class _SplashScreenState extends State<SplashScreen> {
             ],
           ),
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.local_shipping,
-                size: 100,
-                color: Colors.white,
-              ),
-              SizedBox(height: 24),
-              Text(
-                'Oil Manager',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+              // Oil drop icon with container
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.water_drop,
+                  size: 80,
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 8),
-              Text(
-                'Enterprise Fleet Management',
+              const SizedBox(height: 32),
+              const Text(
+                'Oil Manager',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Enterprise Cooking Oil & UCO Management',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white70,
+                  letterSpacing: 0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'B2B • B2C • UCO Buyback',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              SizedBox(height: 48),
-              CircularProgressIndicator(
+              const SizedBox(height: 48),
+              const CircularProgressIndicator(
                 color: Colors.white,
+                strokeWidth: 3,
               ),
             ],
           ),
