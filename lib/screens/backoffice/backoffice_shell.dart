@@ -4,6 +4,9 @@ import '../../providers/auth_provider.dart';
 import 'approval_inbox_screen.dart';
 import 'exception_queue_screen.dart';
 import 'audit_log_screen.dart';
+import 'config_hub_screen.dart';
+import 'system_settings_screen.dart';
+import 'workflow_templates_screen.dart';
 
 /// Backoffice shell with drawer navigation for admin, ops, warehouse, fleet, finance
 class BackofficeShell extends StatefulWidget {
@@ -292,6 +295,33 @@ class _BackofficeShellState extends State<BackofficeShell> {
               title: 'Audit Log',
               index: 12,
             ),
+
+          const Divider(),
+
+          // Configuration Management (admin only)
+          if (canAccessAdministration) ...[
+            _buildDrawerItem(
+              context,
+              icon: Icons.settings_applications_outlined,
+              selectedIcon: Icons.settings_applications,
+              title: 'Config Hub',
+              index: 14,
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
+              title: 'System Settings',
+              index: 15,
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.account_tree_outlined,
+              selectedIcon: Icons.account_tree,
+              title: 'Workflow Templates',
+              index: 16,
+            ),
+          ],
         ],
       ),
     );
@@ -348,6 +378,12 @@ class _BackofficeShellState extends State<BackofficeShell> {
         return const AuditLogScreen();
       case 13: // Approval Inbox
         return const ApprovalInboxScreen();
+      case 14: // Config Hub
+        return const ConfigHubScreen();
+      case 15: // System Settings
+        return const SystemSettingsScreen();
+      case 16: // Workflow Templates
+        return const WorkflowTemplatesScreen();
       default:
         // Default placeholder for other screens
         return Center(
@@ -411,6 +447,12 @@ class _BackofficeShellState extends State<BackofficeShell> {
         return 'Audit Log';
       case 13:
         return 'Approval Inbox';
+      case 14:
+        return 'Config Hub';
+      case 15:
+        return 'System Settings';
+      case 16:
+        return 'Workflow Templates';
       default:
         return 'Oil Manager';
     }
