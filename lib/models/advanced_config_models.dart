@@ -339,7 +339,7 @@ class NotificationTemplate {
   final String id;
   final String templateKey;
   final String channel; // email, push, inApp
-  final String subjectTemplate;
+  final String? subjectTemplate;
   final String bodyTemplate;
   final bool isActive;
   final DateTime updatedAt;
@@ -348,7 +348,7 @@ class NotificationTemplate {
     required this.id,
     required this.templateKey,
     required this.channel,
-    required this.subjectTemplate,
+    this.subjectTemplate,
     required this.bodyTemplate,
     required this.isActive,
     required this.updatedAt,
@@ -359,7 +359,7 @@ class NotificationTemplate {
       id: docId,
       templateKey: data['templateKey'] ?? '',
       channel: data['channel'] ?? 'email',
-      subjectTemplate: data['subjectTemplate'] ?? '',
+      subjectTemplate: data['subjectTemplate'],
       bodyTemplate: data['bodyTemplate'] ?? '',
       isActive: data['isActive'] ?? false,
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
@@ -380,8 +380,9 @@ class NotificationTemplate {
   String get displayName => '$templateKey ($channel)';
 
   /// Replace placeholders in template
-  String renderSubject(Map<String, String> variables) {
-    String result = subjectTemplate;
+  String? renderSubject(Map<String, String> variables) {
+    if (subjectTemplate == null) return null;
+    String result = subjectTemplate!;
     variables.forEach((key, value) {
       result = result.replaceAll('{{$key}}', value);
     });

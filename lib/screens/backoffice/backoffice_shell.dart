@@ -7,6 +7,10 @@ import 'audit_log_screen.dart';
 import 'config_hub_screen.dart';
 import 'system_settings_screen.dart';
 import 'workflow_templates_screen.dart';
+import 'uco_incentives_screen.dart';
+import 'routing_rules_screen.dart';
+import 'delivery_slots_screen.dart';
+import 'notification_templates_screen.dart';
 
 /// Backoffice shell with drawer navigation for admin, ops, warehouse, fleet, finance
 class BackofficeShell extends StatefulWidget {
@@ -321,6 +325,34 @@ class _BackofficeShellState extends State<BackofficeShell> {
               title: 'Workflow Templates',
               index: 16,
             ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.local_offer_outlined,
+              selectedIcon: Icons.local_offer,
+              title: 'UCO Incentives',
+              index: 17,
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.route_outlined,
+              selectedIcon: Icons.route,
+              title: 'Routing Rules',
+              index: 18,
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.local_shipping_outlined,
+              selectedIcon: Icons.local_shipping,
+              title: 'Delivery Slots',
+              index: 19,
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.notifications_outlined,
+              selectedIcon: Icons.notifications,
+              title: 'Notifications',
+              index: 20,
+            ),
           ],
         ],
       ),
@@ -384,6 +416,14 @@ class _BackofficeShellState extends State<BackofficeShell> {
         return const SystemSettingsScreen();
       case 16: // Workflow Templates
         return const WorkflowTemplatesScreen();
+      case 17: // UCO Incentives
+        return const UCOIncentivesScreen();
+      case 18: // Routing Rules
+        return const RoutingRulesScreen();
+      case 19: // Delivery Slots
+        return const DeliverySlotsScreen();
+      case 20: // Notifications
+        return const NotificationTemplatesScreen();
       default:
         // Default placeholder for other screens
         return Center(
@@ -453,6 +493,14 @@ class _BackofficeShellState extends State<BackofficeShell> {
         return 'System Settings';
       case 16:
         return 'Workflow Templates';
+      case 17:
+        return 'UCO Incentives';
+      case 18:
+        return 'Routing Rules';
+      case 19:
+        return 'Delivery Slots';
+      case 20:
+        return 'Notification Templates';
       default:
         return 'Oil Manager';
     }
